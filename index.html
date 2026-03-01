@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>股票查询</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="container">
+    <section class="card">
+      <h1>股票查询</h1>
+      <p class="subtitle">输入股票代码，查看当前价格与近 1 个月走势</p>
+
+      <form id="stock-form" class="search-row">
+        <input
+          id="symbol-input"
+          type="text"
+          placeholder="例如：AAPL、TSLA、MSFT"
+          autocomplete="off"
+          required
+        >
+        <button type="submit">查询</button>
+      </form>
+
+      <p id="status" class="status">请输入股票代码开始查询。</p>
+
+      <div id="result" class="result hidden">
+        <div class="metrics">
+          <div class="metric-item">
+            <span>股票代码</span>
+            <strong id="symbol-text">-</strong>
+          </div>
+          <div class="metric-item">
+            <span>当前价格</span>
+            <strong id="price-text">-</strong>
+          </div>
+          <div class="metric-item">
+            <span>货币</span>
+            <strong id="currency-text">-</strong>
+          </div>
+          <div class="metric-item">
+            <span>更新时间</span>
+            <strong id="time-text">-</strong>
+          </div>
+        </div>
+
+        <div class="chart-wrap">
+          <canvas id="chart" width="900" height="360"></canvas>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
