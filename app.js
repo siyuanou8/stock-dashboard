@@ -1,5 +1,6 @@
 const form = document.getElementById("stock-form");
 const symbolInput = document.getElementById("symbol-input");
+const apiKeyInput = document.getElementById("api-key-input");
 const statusEl = document.getElementById("status");
 const resultEl = document.getElementById("result");
 const symbolTextEl = document.getElementById("symbol-text");
@@ -89,37 +90,56 @@ function drawChart(points) {
 
 async function fetchStockData(symbol) {
   const encoded = encodeURIComponent(symbol.toUpperCase());
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encoded}?range=1mo&interval=1d`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`请求失败 (${res.status})`);
+  const apiKey = apiKeyInput.value.trim() || "demo";
+  const quoteUrl = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encoded}&apikey=${encodeURIComponent(apiKey)}`;
+  const historyUrl = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${encoded}&outputsize=compact&apikey=${encodeURIComponent(apiKey)}`;
+  const [quoteRes, historyRes] = await Promise.all([fetch(quoteUrl), fetch(historyUrl)]);
+
+  if (!quoteRes.ok || !historyRes.ok) {
+    throw new Error(`请求失败 (${quoteRes.status}/${historyRes.status})`);
   }
 
-  const data = await res.json();
-  const result = data?.chart?.result?.[0];
-  if (!result) {
-    const err = data?.chart?.error?.description || "未找到该股票代码";
-    throw new Error(err);
+  const quoteData = await quoteRes.json();
+  const historyData = await historyRes.json();
+
+  if (quoteData?.Note || historyData?.Note) {
+    throw new Error("请求频率超限，请稍后重试或使用你自己的 API Key");
   }
 
-  const meta = result.meta || {};
-  const quotes = result.indicators?.quote?.[0] || {};
-  const timestamps = result.timestamp || [];
-  const closes = quotes.close || [];
-  const points = [];
-
-  for (let i = 0; i < timestamps.length; i += 1) {
-    const close = closes[i];
-    if (typeof close === "number" && Number.isFinite(close)) {
-      points.push({ ts: timestamps[i], close });
-    }
+  if (quoteData?.["Error Message"] || historyData?.["Error Message"]) {
+    throw new Error("股票代码无效或 API Key 不可用");
   }
+
+  const quote = quoteData?.["Global Quote"];
+  const daily = historyData?.["Time Series (Daily)"];
+  if (!quote || !Object.keys(quote).length || !daily) {
+    throw new Error("未获取到有效数据，请检查股票代码或 API Key");
+  }
+
+  const dailyEntries = Object.entries(daily)
+    .map(([date, item]) => {
+      const close = Number(item?.["4. close"]);
+      return { date, close };
+    })
+    .filter((item) => Number.isFinite(item.close))
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  const points = dailyEntries.slice(-30).map((item) => ({
+    ts: Math.floor(new Date(`${item.date}T00:00:00Z`).getTime() / 1000),
+    close: item.close
+  }));
+
+  const currentPrice = Number(quote["05. price"]);
+  const latestDate = quote["07. latest trading day"];
+  const marketTime = latestDate
+    ? Math.floor(new Date(`${latestDate}T00:00:00Z`).getTime() / 1000)
+    : null;
 
   return {
-    symbol: meta.symbol || symbol.toUpperCase(),
-    price: meta.regularMarketPrice,
-    currency: meta.currency || "-",
-    marketTime: meta.regularMarketTime,
+    symbol: quote["01. symbol"] || symbol.toUpperCase(),
+    price: currentPrice,
+    currency: "USD",
+    marketTime,
     points
   };
 }
@@ -133,7 +153,7 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
-  setStatus("查询中，请稍候...");
+  setStatus("查询中，请稍候（Alpha Vantage 免费版有频率限制）...");
   resultEl.classList.add("hidden");
 
   try {

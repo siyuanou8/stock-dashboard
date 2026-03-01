@@ -20,10 +20,16 @@
           autocomplete="off"
           required
         >
+        <input
+          id="api-key-input"
+          type="text"
+          placeholder="Alpha Vantage API Key（默认 demo）"
+          autocomplete="off"
+        >
         <button type="submit">查询</button>
       </form>
 
-      <p id="status" class="status">请输入股票代码开始查询。</p>
+      <p id="status" class="status">请输入股票代码开始查询。请尽量填写你自己的 Alpha Vantage API Key。</p>
 
       <div id="result" class="result hidden">
         <div class="metrics">
